@@ -25,13 +25,21 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Register a command to open a template for editing
     const openTemplateCommand = vscode.commands.registerCommand('prompt-my-repo.openTemplate', (templatePath: string) => {
-        vscode.window.showTextDocument(vscode.Uri.file(templatePath));
+        if (templatePath) {
+            vscode.window.showTextDocument(vscode.Uri.file(templatePath));
+        } else {
+            vscode.window.showErrorMessage('No template path provided.');
+        }
     });
 
     // Register a command to delete a template
     const deleteTemplateCommand = vscode.commands.registerCommand('prompt-my-repo.deleteTemplate', (templatePath: string) => {
-        fs.unlinkSync(templatePath); // Delete the file
-        treeDataProvider.refresh(); // Refresh the sidebar view
+        if (templatePath) {
+            fs.unlinkSync(templatePath); // Delete the file
+            treeDataProvider.refresh(); // Refresh the sidebar view
+        } else {
+            vscode.window.showErrorMessage('No template path provided.');
+        }
     });
 
     context.subscriptions.push(createTemplateCommand, openTemplateCommand, deleteTemplateCommand);
@@ -79,6 +87,13 @@ class TemplateItem extends vscode.TreeItem {
         this.tooltip = this.filePath;
         this.contextValue = 'templateItem'; // Used for context menus
         this.iconPath = new vscode.ThemeIcon('file'); // Add an icon to the item
+
+        // Set the command to open the file
+        this.command = {
+            command: 'prompt-my-repo.openTemplate',
+            title: 'Open Template',
+            arguments: [this.filePath]
+        };
     }
 }
 

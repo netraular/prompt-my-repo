@@ -36,24 +36,24 @@
         "command": "prompt-my-repo.createTemplate",
         "title": "Create Template",
         "icon": {
-          "light": "assets/create.svg",
-          "dark": "assets/create.svg"
+          "light": "assets/create-light.svg",
+          "dark": "assets/create-dark.svg"
         }
       },
       {
         "command": "prompt-my-repo.openTemplate",
         "title": "Open Template",
         "icon": {
-          "light": "assets/edit.svg",
-          "dark": "assets/edit.svg"
+          "light": "assets/edit-light.svg",
+          "dark": "assets/edit-dark.svg"
         }
       },
       {
         "command": "prompt-my-repo.deleteTemplate",
         "title": "Delete Template",
         "icon": {
-          "light": "assets/delete.svg",
-          "dark": "assets/delete.svg"
+          "light": "assets/delete-light.svg",
+          "dark": "assets/delete-dark.svg"
         }
       }
     ],
