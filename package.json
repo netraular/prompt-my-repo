@@ -9,15 +9,75 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onView:prompt-my-repo.view"
+  ],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "prompt-my-repo",
+          "title": "Prompt My Repo",
+          "icon": "assets/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "prompt-my-repo": [
+        {
+          "id": "prompt-my-repo.view",
+          "name": "Templates"
+        }
+      ]
+    },
     "commands": [
       {
-        "command": "prompt-my-repo.helloWorld",
-        "title": "Hello World"
+        "command": "prompt-my-repo.createTemplate",
+        "title": "Create Template",
+        "icon": {
+          "light": "assets/create.svg",
+          "dark": "assets/create.svg"
+        }
+      },
+      {
+        "command": "prompt-my-repo.openTemplate",
+        "title": "Open Template",
+        "icon": {
+          "light": "assets/edit.svg",
+          "dark": "assets/edit.svg"
+        }
+      },
+      {
+        "command": "prompt-my-repo.deleteTemplate",
+        "title": "Delete Template",
+        "icon": {
+          "light": "assets/delete.svg",
+          "dark": "assets/delete.svg"
+        }
       }
-    ]
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "prompt-my-repo.createTemplate",
+          "group": "navigation",
+          "when": "view == prompt-my-repo.view"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "prompt-my-repo.openTemplate",
+          "group": "inline",
+          "when": "view == prompt-my-repo.view && viewItem == templateItem"
+        },
+        {
+          "command": "prompt-my-repo.deleteTemplate",
+          "group": "inline",
+          "when": "view == prompt-my-repo.view && viewItem == templateItem"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

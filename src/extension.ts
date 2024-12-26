@@ -1,26 +1,85 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+import * as path from 'path';
+import * as fs from 'fs';
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
+    console.log('Congratulations, your extension "prompt-my-repo" is now active!');
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "prompt-my-repo" is now active!');
+    // Register a Tree Data Provider for the sidebar view
+    const treeDataProvider = new TemplateTreeDataProvider(context);
+    vscode.window.registerTreeDataProvider('prompt-my-repo.view', treeDataProvider);
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('prompt-my-repo.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from Prompt my repo!');
-	});
+    // Register a command to create a new template
+    const createTemplateCommand = vscode.commands.registerCommand('prompt-my-repo.createTemplate', async () => {
+        const templateName = await vscode.window.showInputBox({
+            prompt: 'Enter a name for the new template',
+            placeHolder: 'Template name'
+        });
 
-	context.subscriptions.push(disposable);
+        if (templateName) {
+            const templatePath = path.join(context.globalStorageUri.fsPath, templateName); // No file extension
+            fs.writeFileSync(templatePath, ''); // Create an empty file
+            treeDataProvider.refresh(); // Refresh the sidebar view
+        }
+    });
+
+    // Register a command to open a template for editing
+    const openTemplateCommand = vscode.commands.registerCommand('prompt-my-repo.openTemplate', (templatePath: string) => {
+        vscode.window.showTextDocument(vscode.Uri.file(templatePath));
+    });
+
+    // Register a command to delete a template
+    const deleteTemplateCommand = vscode.commands.registerCommand('prompt-my-repo.deleteTemplate', (templatePath: string) => {
+        fs.unlinkSync(templatePath); // Delete the file
+        treeDataProvider.refresh(); // Refresh the sidebar view
+    });
+
+    context.subscriptions.push(createTemplateCommand, openTemplateCommand, deleteTemplateCommand);
 }
 
-// This method is called when your extension is deactivated
+class TemplateTreeDataProvider implements vscode.TreeDataProvider<TemplateItem> {
+    private _onDidChangeTreeData = new vscode.EventEmitter<TemplateItem | undefined>();
+    readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
+
+    constructor(private context: vscode.ExtensionContext) {}
+
+    refresh(): void {
+        this._onDidChangeTreeData.fire(undefined);
+    }
+
+    getTreeItem(element: TemplateItem): vscode.TreeItem {
+        return element;
+    }
+
+    getChildren(): Thenable<TemplateItem[]> {
+        const templatesDir = this.context.globalStorageUri.fsPath;
+        if (!fs.existsSync(templatesDir)) {
+            fs.mkdirSync(templatesDir, { recursive: true });
+        }
+
+        // Read all files in the directory (without filtering for extensions)
+        const templateFiles = fs.readdirSync(templatesDir).filter(file => !fs.statSync(path.join(templatesDir, file)).isDirectory());
+        const templateItems = templateFiles.map(file => {
+            const filePath = path.join(templatesDir, file);
+            return new TemplateItem(file, filePath);
+        });
+
+        return Promise.resolve(templateItems);
+    }
+}
+
+class TemplateItem extends vscode.TreeItem {
+    constructor(
+        public readonly label: string,
+        public readonly filePath: string
+    ) {
+        super(label, vscode.TreeItemCollapsibleState.None);
+
+        // Add buttons for opening and deleting the file
+        this.tooltip = this.filePath;
+        this.contextValue = 'templateItem'; // Used for context menus
+        this.iconPath = new vscode.ThemeIcon('file'); // Add an icon to the item
+    }
+}
+
 export function deactivate() {}
