@@ -24,7 +24,17 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     // Register a command to open a template for editing
-    const openTemplateCommand = vscode.commands.registerCommand('prompt-my-repo.openTemplate', (templatePath: string) => {
+    const openTemplateCommand = vscode.commands.registerCommand('prompt-my-repo.openTemplate', (arg: string | TemplateItem) => {
+        let templatePath: string;
+        if (typeof arg === 'string') {
+            templatePath = arg; // If the argument is a string, use it directly
+        } else if (arg instanceof TemplateItem) {
+            templatePath = arg.filePath; // If the argument is a TemplateItem, extract the filePath
+        } else {
+            vscode.window.showErrorMessage('Invalid argument provided to openTemplate command.');
+            return;
+        }
+
         if (templatePath) {
             vscode.window.showTextDocument(vscode.Uri.file(templatePath));
         } else {
@@ -33,9 +43,9 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     // Register a command to delete a template
-    const deleteTemplateCommand = vscode.commands.registerCommand('prompt-my-repo.deleteTemplate', (templatePath: string) => {
-        if (templatePath) {
-            fs.unlinkSync(templatePath); // Delete the file
+    const deleteTemplateCommand = vscode.commands.registerCommand('prompt-my-repo.deleteTemplate', (templateItem: TemplateItem) => {
+        if (templateItem && templateItem.filePath) {
+            fs.unlinkSync(templateItem.filePath); // Delete the file
             treeDataProvider.refresh(); // Refresh the sidebar view
         } else {
             vscode.window.showErrorMessage('No template path provided.');
