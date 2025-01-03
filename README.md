@@ -1,9 +1,3 @@
-Here’s the `README.md` file for your extension, tailored to its purpose and functionality:
-
----
-
-# Prompt My Repo README
-
 Welcome to **Prompt My Repo**, a VS Code extension designed to help you easily copy the content of multiple files and directories from your project into a text format. This is particularly useful when working with Large Language Models (LLMs) for code analysis, debugging, or documentation generation.
 
 ## Features
