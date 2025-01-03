@@ -18,7 +18,8 @@ export function activate(context: vscode.ExtensionContext) {
 
         if (templateName) {
             const templatePath = path.join(context.globalStorageUri.fsPath, templateName);
-            fs.writeFileSync(templatePath, ''); // Create an empty file
+            const initialContent = `# Incluye aquí los directorios o archivos que quieras copiar relativos al directorio actual. Puedes incluir "\\*" al final de un directorio para revisar también el contenido de los subdirectorios.\n`;
+            fs.writeFileSync(templatePath, initialContent); // Create a file with initial content
             treeDataProvider.refresh(); // Refresh the sidebar view
         }
     });
