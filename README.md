@@ -1,71 +1,86 @@
-# prompt-my-repo README
-
-This is the README for your extension "prompt-my-repo". After writing up a brief description, we recommend including the following sections.
-
-## Features
-
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
-
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
-
-## Requirements
-
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
-
-## Extension Settings
-
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
-This extension contributes the following settings:
-
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
-
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
-
-## Release Notes
-
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
+Here’s the `README.md` file for your extension, tailored to its purpose and functionality:
 
 ---
 
-## Following extension guidelines
+# Prompt My Repo README
 
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+Welcome to **Prompt My Repo**, a VS Code extension designed to help you easily copy the content of multiple files and directories from your project into a text format. This is particularly useful when working with Large Language Models (LLMs) for code analysis, debugging, or documentation generation.
 
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+## Features
 
-## Working with Markdown
+- **Select Files and Directories**: Specify files or directories in a template file to include their content.
+- **Recursive Directory Search**: Use `\*` at the end of a directory path to include all files in subdirectories.
+- **Exclude Comments**: Lines starting with `#` are treated as comments and ignored.
+- **Formatted Output**: Copies file content in a structured format, including relative paths and file content.
+- **Clipboard Integration**: Automatically copies the formatted output to your clipboard for easy pasting.
 
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
+### Example
 
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
+1. Create a template file with the following content:
+   ```
+   # Include files or directories here
+   src\*
+   utils\helper.js
+   ```
 
-## For more information
+2. Run the `Copy Template` command.
+3. The following formatted output will be copied to your clipboard:
+   ```
+   src\main.js:
+   ```
+   ```javascript
+   console.log("Hello, world!");
+   ```
 
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+   ```
+   utils\helper.js:
+   ```
+   ```javascript
+   function helper() {
+       return "Helpful!";
+   }
+   ```
 
-**Enjoy!**
+## Requirements
+
+- **VS Code**: This extension requires Visual Studio Code version 1.96.0 or higher.
+- **Workspace**: You must have an open workspace folder in VS Code.
+
+## Extension Settings
+
+This extension does not currently add any specific settings to VS Code.
+
+## Known Issues
+
+- **Large Files**: Extremely large files may cause performance issues when copying content.
+- **Non-Text Files**: Binary or non-text files are not supported and will be skipped.
+
+## Release Notes
+
+### 1.0.0
+
+- Initial release of **Prompt My Repo**.
+- Supports copying file content from specified paths and directories.
+- Includes recursive directory search with `\*`.
+
+### 1.0.1
+
+- Fixed issue with handling paths containing spaces.
+- Improved error handling for missing files or directories.
+
+### 1.1.0
+
+- Added support for comments in template files (lines starting with `#`).
+- Improved formatting of copied content for better readability.
+
+---
+
+## Following Extension Guidelines
+
+This extension adheres to the [VS Code Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines). It follows best practices for performance, usability, and maintainability.
+
+**Enjoy using Prompt My Repo!**
+
+--- 
+
+This `README.md` provides a clear overview of your extension, its features, and how to use it. It also includes sections for requirements, known issues, and release notes to keep users informed.
