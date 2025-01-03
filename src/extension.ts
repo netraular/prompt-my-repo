@@ -66,9 +66,9 @@ export function activate(context: vscode.ExtensionContext) {
             const lines = templateContent
                 .split('\n')
                 .map(line => line.trim()) // Trim whitespace
-                .filter(line => line !== ''); // Ignore empty lines
+                .filter(line => line !== '' && !line.startsWith('#')); // Ignore empty lines and comments
 
-            let allFiles: string[] = [];
+            const uniqueFiles = new Set<string>(); // Usar un Set para eliminar duplicados
             const treeDataProvider = new TemplateTreeDataProvider(context);
 
             for (const line of lines) {
@@ -87,19 +87,19 @@ export function activate(context: vscode.ExtensionContext) {
                             ? treeDataProvider.getAllFiles(fullPath) // Recursive search
                             : treeDataProvider.getFilesInDirectory(fullPath); // Non-recursive search
                         console.log(`Files found: ${files.length}`);
-                        allFiles = allFiles.concat(files);
+                        files.forEach(file => uniqueFiles.add(file)); // Agregar archivos al Set
                     } else {
                         // Handle file
                         console.log(`Found file: ${fullPath}`);
-                        allFiles.push(fullPath);
+                        uniqueFiles.add(fullPath); // Agregar archivo al Set
                     }
                 } else {
                     console.warn(`Path not found: ${fullPath}`);
                 }
             }
 
-            console.log(`Total files found: ${allFiles.length}`); // Debugging
-            const fileList = allFiles.join('\n');
+            console.log(`Total unique files found: ${uniqueFiles.size}`); // Debugging
+            const fileList = Array.from(uniqueFiles).join('\n'); // Convertir el Set a un array y unir las rutas
             vscode.env.clipboard.writeText(fileList);
             vscode.window.showInformationMessage('File list copied to clipboard!');
         } else {
