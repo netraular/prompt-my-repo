@@ -19,7 +19,7 @@
         {
           "id": "prompt-my-repo",
           "title": "Prompt My Repo",
-          "icon": "assets/icon.svg"
+          "icon": "$(repo)"
         }
       ]
     },
@@ -35,34 +35,22 @@
       {
         "command": "prompt-my-repo.createTemplate",
         "title": "Create Template",
-        "icon": {
-          "light": "assets/create-light.svg",
-          "dark": "assets/create-dark.svg"
-        }
+        "icon": "$(add)"
       },
       {
         "command": "prompt-my-repo.copyTemplate",
         "title": "Copy Template",
-        "icon": {
-          "light": "assets/copy-light.svg",
-          "dark": "assets/copy-dark.svg"
-        }
+        "icon": "$(copy)"
       },
       {
         "command": "prompt-my-repo.openTemplate",
         "title": "Open Template",
-        "icon": {
-          "light": "assets/edit-light.svg",
-          "dark": "assets/edit-dark.svg"
-        }
+        "icon": "$(edit)"
       },
       {
         "command": "prompt-my-repo.deleteTemplate",
         "title": "Delete Template",
-        "icon": {
-          "light": "assets/delete-light.svg",
-          "dark": "assets/delete-dark.svg"
-        }
+        "icon": "$(trash)"
       }
     ],
     "menus": {
