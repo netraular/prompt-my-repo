@@ -18,7 +18,7 @@ export function activate(context: vscode.ExtensionContext) {
 
         if (templateName) {
             const templatePath = path.join(context.globalStorageUri.fsPath, templateName);
-            const initialContent = `# Incluye aquí los directorios o archivos que quieras copiar relativos al directorio actual. Puedes incluir "\\*" al final de un directorio para revisar también el contenido de los subdirectorios.\n`;
+            const initialContent = `# Include here the directories or files you want to copy relative to the current directory. You can append "\\*" at the end of a directory to also check the contents of subdirectories.\n`;
             fs.writeFileSync(templatePath, initialContent); // Create a file with initial content
             treeDataProvider.refresh(); // Refresh the sidebar view
         }
@@ -100,8 +100,18 @@ export function activate(context: vscode.ExtensionContext) {
             }
 
             console.log(`Total unique files found: ${uniqueFiles.size}`); // Debugging
-            const fileList = Array.from(uniqueFiles).join('\n'); // Convertir el Set a un array y unir las rutas
-            vscode.env.clipboard.writeText(fileList);
+
+            // Formatear el contenido de los archivos
+            let formattedContent = '';
+            for (const file of uniqueFiles) {
+                const relativePath = path.relative(workspaceRoot, file); // Obtener la ruta relativa
+                const fileContent = fs.readFileSync(file, 'utf-8'); // Leer el contenido del archivo
+
+                formattedContent += `${relativePath}:\n\`\`\`\n${fileContent}\n\`\`\`\n\n`;
+            }
+
+            // Copiar el contenido formateado al portapapeles
+            vscode.env.clipboard.writeText(formattedContent.trim()); // Eliminar espacios en blanco al final
             vscode.window.showInformationMessage('File list copied to clipboard!');
         } else {
             vscode.window.showErrorMessage('No template path provided.');
