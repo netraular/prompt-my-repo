@@ -41,6 +41,14 @@
         }
       },
       {
+        "command": "prompt-my-repo.copyTemplate",
+        "title": "Copy Template",
+        "icon": {
+          "light": "assets/copy-light.svg",
+          "dark": "assets/copy-dark.svg"
+        }
+      },
+      {
         "command": "prompt-my-repo.openTemplate",
         "title": "Open Template",
         "icon": {
@@ -66,6 +74,11 @@
         }
       ],
       "view/item/context": [
+        {
+          "command": "prompt-my-repo.copyTemplate",
+          "group": "inline",
+          "when": "view == prompt-my-repo.view && viewItem == templateItem"
+        },
         {
           "command": "prompt-my-repo.openTemplate",
           "group": "inline",
