@@ -77,7 +77,3 @@ This extension does not currently add any specific settings to VS Code.
 This extension adheres to the [VS Code Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines). It follows best practices for performance, usability, and maintainability.
 
 **Enjoy using Prompt My Repo!**
-
---- 
-
-This `README.md` provides a clear overview of your extension, its features, and how to use it. It also includes sections for requirements, known issues, and release notes to keep users informed.
