@@ -3,6 +3,8 @@
 
 Welcome to **Prompt My Repo**, a VS Code extension designed to help you easily copy the content of multiple files and directories from your project into a text format. This is particularly useful when working with Large Language Models (LLMs) for code analysis, debugging, or documentation generation.
 
+**[Install the Extension from the Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=netraular.prompt-my-repo)**
+
 ## Features
 
 - **Select Files and Directories**: Specify files or directories in a template file to include their content.
