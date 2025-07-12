@@ -4,98 +4,47 @@ Welcome to **Prompt My Repo**, a VS Code extension designed to help you easily c
 
 **[Install the Extension from the Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=netraular.prompt-my-repo)**
 
+## How to Use
+
+1.  **Create a New Template**
+    Click the `+` icon in the "Prompt My Repo" view sidebar to create a new template file. You will be prompted to give it a name.
+
+    ![Create a new template](images/create_template.png)
+
+2.  **Add Paths to Your Template**
+    Open your new template file. A quick way to get accurate paths is to right-click any file or folder in the Explorer, select `Copy Relative Path`, and paste it into your template. You can then add modifiers like `*` for recursion or `-` to exclude items.
+
+    ![Copy a relative path to use in the template](images/copy_relative_route.png)
+
+3.  **Process Template and Copy to Clipboard**
+    Once your template is defined, right-click on it in the sidebar and select "Copy Template" (or use the inline copy icon). This action reads all the rules in your template, gathers the content from the specified files, and copies the final formatted text to your clipboard.
+
+    ![Process the template and copy content](images/copy_template.png)
+
+4.  **Paste into Your Prompt**
+    Paste the formatted output directly into your LLM chat, a document, or anywhere you need it. The content is structured with file paths for clear context.
+
+    ![Paste the formatted output](images/paste_template.png)
+
 ## Features
 
 - **Select Files and Directories**: Specify files or directories in a template file to include their content.
 - **Recursive Directory Search**: Use `*` at the end of a directory path to include all files in subdirectories.
 - **Filter by File Extension**: Specify allowed file extensions for directory searches.
 - **Exclusions**: Exclude specific files or directories by prefixing them with `-`.
-- **Ignore Comments**: Lines starting with `#` are treated as comments and ignored.
+- **Ignore Comments**: Lines starting with `#` are treated as comments and ignored during processing, but they are preserved in the final output to add context to your prompt.
 - **Formatted Output**: Copies file content in a structured format, including relative paths and file content.
 - **Clipboard Integration**: Automatically copies the formatted output to your clipboard for easy pasting.
-
-### Example Template
-
-1.  Create a template file with the following content:
-    ```
-    # Include all .ts and .tsx files recursively from the 'src' directory
-    src* [.ts, .tsx]
-
-    # Include a specific helper file
-    utils/helper.js
-
-    # Exclude all test files
-    -src* [.spec.ts, .test.ts]
-
-    # Include all markdown files from the 'docs' directory (non-recursively)
-    docs [.md]
-    ```
-
-2.  Run the `Copy Template` command from the view item's context menu.
-3.  The formatted content, based on the files found, will be copied to your clipboard. For example:
-    ```
-    src/component/MyComponent.tsx:
-    ```
-    ```tsx
-    import React from 'react';
-
-    const MyComponent = () => <div>Hello!</div>;
-
-    export default MyComponent;
-    ```
-    
-    ```
-    utils/helper.js:
-    ```
-    ```javascript
-    function helper() {
-        return "Helpful!";
-    }
-    ```
-    
-    ```
-    docs/guide.md:
-    ```
-    ```markdown
-    # User Guide
-    This is a guide.
-    ```
 
 ## Requirements
 
 - **VS Code**: This extension requires Visual Studio Code version 1.96.0 or higher.
 - **Workspace**: You must have an open workspace folder in VS Code.
 
-## Extension Settings
-
-This extension does not currently add any specific settings to VS Code.
-
 ## Known Issues
 
 - **Large Files**: Extremely large files may cause performance issues when copying content.
 - **Non-Text Files**: Binary or non-text files are not supported and will be skipped.
-
-## Release Notes
-
-### 1.2.0 (Planned)
-
-- **New Feature**: Added filtering by file extension in templates (e.g., `src* [.js, .css]`).
-
-### 1.1.0
-
-- Added support for comments in template files (lines starting with `#`).
-- Improved formatting of copied content for better readability.
-
-### 1.0.1
-
-- Fixed issue with handling paths containing spaces.
-- Improved error handling for missing files or directories.
-
-### 1.0.0
-
-- Initial release of **Prompt My Repo**.
-- Supports copying file content from specified paths and directories.
-- Includes recursive directory search with `*`.
 
 ---
 
