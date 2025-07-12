@@ -18,9 +18,10 @@ export function activate(context: vscode.ExtensionContext) {
 
         if (templateName) {
             const templatePath = path.join(context.globalStorageUri.fsPath, templateName);
-            const initialContent = `# Include here the directories or files you want to copy relative to the current directory.\n# You can append "*" at the end of a directory to also check the contents of subdirectories (e.g., src*).\n`;
-            fs.writeFileSync(templatePath, initialContent); // Create a file with initial content
-            treeDataProvider.refresh(); // Refresh the sidebar view
+            // Updated initial content to mention the exclusion feature
+            const initialContent = `# Include directories or files you want to copy relative to the workspace root.\n# Append "*" to a directory for a recursive search (e.g., src*).\n# Exclude files or directories by prefixing them with "-" (e.g., -node_modules*).\n`;
+            fs.writeFileSync(templatePath, initialContent);
+            treeDataProvider.refresh();
         }
     });
 
@@ -46,8 +47,8 @@ export function activate(context: vscode.ExtensionContext) {
     // Register a command to delete a template
     const deleteTemplateCommand = vscode.commands.registerCommand('prompt-my-repo.deleteTemplate', (templateItem: TemplateItem) => {
         if (templateItem && templateItem.filePath) {
-            fs.unlinkSync(templateItem.filePath); // Delete the file
-            treeDataProvider.refresh(); // Refresh the sidebar view
+            fs.unlinkSync(templateItem.filePath);
+            treeDataProvider.refresh();
         } else {
             vscode.window.showErrorMessage('No template path provided.');
         }
@@ -55,79 +56,106 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Register a command to copy the contents of a template
     const copyTemplateCommand = vscode.commands.registerCommand('prompt-my-repo.copyTemplate', async (templateItem: TemplateItem) => {
-        if (templateItem && templateItem.filePath) {
-            const templateContent = fs.readFileSync(templateItem.filePath, 'utf-8');
-            const workspaceFolders = vscode.workspace.workspaceFolders;
-            if (!workspaceFolders) {
-                vscode.window.showErrorMessage('No workspace folder is open.');
-                return;
+        if (!templateItem?.filePath) {
+            vscode.window.showErrorMessage('No template path provided.');
+            return;
+        }
+
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (!workspaceFolders) {
+            vscode.window.showErrorMessage('No workspace folder is open.');
+            return;
+        }
+
+        const workspaceRoot = workspaceFolders[0].uri.fsPath;
+        const templateContent = fs.readFileSync(templateItem.filePath, 'utf-8');
+        const templateLines = templateContent.split('\n');
+        const fileHelpers = new TemplateTreeDataProvider(context);
+
+        // Helper function to resolve a path spec (like 'src*' or 'file.txt') to a list of file paths
+        const resolvePathSpec = (spec: string): string[] => {
+            const isRecursive = spec.endsWith('*');
+            const normalizedSpec = isRecursive ? spec.slice(0, -1).trim() : spec;
+            const fullPath = path.join(workspaceRoot, normalizedSpec);
+
+            if (!fs.existsSync(fullPath)) {
+                console.warn(`Path not found: ${fullPath}`);
+                return [];
             }
 
-            const workspaceRoot = workspaceFolders[0].uri.fsPath;
-            let formattedContent = '';
-            const processedFiles = new Set<string>(); // To avoid duplicating file content
-            const fileHelpers = new TemplateTreeDataProvider(context); // For file system helpers
-            
-            const templateLines = templateContent.split('\n');
+            if (fs.statSync(fullPath).isDirectory()) {
+                return isRecursive
+                    ? fileHelpers.getAllFiles(fullPath)
+                    : fileHelpers.getFilesInDirectory(fullPath);
+            } else {
+                return [fullPath];
+            }
+        };
 
-            for (const line of templateLines) {
-                const trimmedLine = line.trim();
+        // --- PASS 1: Build the set of excluded files ---
+        const excludedFiles = new Set<string>();
+        console.log("--- Starting exclusion pass ---");
+        for (const line of templateLines) {
+            const trimmedLine = line.trim();
+            if (trimmedLine.startsWith('-')) {
+                const spec = trimmedLine.substring(1).trim();
+                const filesToExclude = resolvePathSpec(spec);
+                filesToExclude.forEach(file => {
+                    console.log(`Excluding file: ${file}`);
+                    excludedFiles.add(file);
+                });
+            }
+        }
+        console.log(`Total files to exclude: ${excludedFiles.size}`);
 
-                // If the line is a comment or empty, add it to the output and continue
-                if (trimmedLine.startsWith('#') || trimmedLine === '') {
-                    formattedContent += line + '\n';
+        // --- PASS 2: Build the final output, respecting inclusions, exclusions, and order ---
+        let formattedContent = '';
+        const processedFiles = new Set<string>(); // Avoid duplicating file content
+        
+        console.log("--- Starting inclusion pass ---");
+        for (const line of templateLines) {
+            const trimmedLine = line.trim();
+
+            if (trimmedLine.startsWith('#') || trimmedLine === '') {
+                formattedContent += line + '\n';
+                continue;
+            }
+
+            // Exclusion rules are ignored in this pass, they were handled in pass 1
+            if (trimmedLine.startsWith('-')) {
+                continue;
+            }
+
+            // This is an inclusion rule
+            const filesToInclude = resolvePathSpec(trimmedLine);
+            for (const file of filesToInclude) {
+                // Check against three conditions:
+                // 1. Is it explicitly excluded?
+                // 2. Has it already been processed?
+                if (excludedFiles.has(file)) {
+                    console.log(`Skipping excluded file: ${file}`);
+                    continue;
+                }
+                if (processedFiles.has(file)) {
+                    console.log(`Skipping already processed file: ${file}`);
                     continue;
                 }
 
-                // Otherwise, it's a path that needs processing
-                const isRecursive = trimmedLine.endsWith('*');
-                const pathSpec = isRecursive ? trimmedLine.slice(0, -1).trim() : trimmedLine;
-                const fullPath = path.join(workspaceRoot, pathSpec);
-
-                console.log(`Checking path: ${fullPath}`); // Debugging
-
-                if (fs.existsSync(fullPath)) {
-                    let filesToProcess: string[] = [];
-                    if (fs.statSync(fullPath).isDirectory()) {
-                        // Handle directory
-                        console.log(`Processing directory: ${fullPath}`);
-                        filesToProcess = isRecursive
-                            ? fileHelpers.getAllFiles(fullPath)       // Recursive search
-                            : fileHelpers.getFilesInDirectory(fullPath); // Non-recursive search
-                    } else {
-                        // Handle file
-                        console.log(`Found file: ${fullPath}`);
-                        filesToProcess.push(fullPath);
-                    }
-
-                    for (const file of filesToProcess) {
-                        if (processedFiles.has(file)) {
-                            // Skip if file content has already been included
-                            continue;
-                        }
-
-                        processedFiles.add(file); // Mark as processed
-                        const relativePath = path.relative(workspaceRoot, file);
-                        const fileContent = fs.readFileSync(file, 'utf-8');
-
-                        // Add formatted file content to the output
-                        formattedContent += `${relativePath}:\n\`\`\`\n${fileContent}\n\`\`\`\n\n`;
-                    }
-                } else {
-                    console.warn(`Path not found: ${fullPath}`);
-                }
+                // If all checks pass, process the file
+                processedFiles.add(file);
+                const relativePath = path.relative(workspaceRoot, file);
+                const fileContent = fs.readFileSync(file, 'utf-8');
+                formattedContent += `${relativePath}:\n\`\`\`\n${fileContent}\n\`\`\`\n\n`;
             }
-
-            // Copy the final content to the clipboard and show a success message
-            vscode.env.clipboard.writeText(formattedContent.trimEnd());
-            vscode.window.showInformationMessage('Template content copied to clipboard!');
-        } else {
-            vscode.window.showErrorMessage('No template path provided.');
         }
+
+        vscode.env.clipboard.writeText(formattedContent.trimEnd());
+        vscode.window.showInformationMessage('Template content copied to clipboard!');
     });
 
     context.subscriptions.push(createTemplateCommand, openTemplateCommand, deleteTemplateCommand, copyTemplateCommand);
 }
+
 
 class TemplateTreeDataProvider implements vscode.TreeDataProvider<TemplateItem> {
     private _onDidChangeTreeData = new vscode.EventEmitter<TemplateItem | undefined>();
@@ -166,11 +194,11 @@ class TemplateTreeDataProvider implements vscode.TreeDataProvider<TemplateItem> 
         for (const item of items) {
             const fullPath = path.join(dirPath, item);
             if (fs.statSync(fullPath).isDirectory()) {
-                console.log(`Entering subdirectory: ${fullPath}`);
+                // console.log(`Entering subdirectory: ${fullPath}`);
                 const subFiles = this.getAllFiles(fullPath); // Llamada recursiva
                 files = files.concat(subFiles);
             } else {
-                console.log(`Found file: ${fullPath}`);
+                // console.log(`Found file: ${fullPath}`);
                 files.push(fullPath);
             }
         }
@@ -186,7 +214,7 @@ class TemplateTreeDataProvider implements vscode.TreeDataProvider<TemplateItem> 
         for (const item of items) {
             const fullPath = path.join(dirPath, item);
             if (!fs.statSync(fullPath).isDirectory()) {
-                console.log(`Found file: ${fullPath}`);
+                // console.log(`Found file: ${fullPath}`);
                 files.push(fullPath);
             }
         }
