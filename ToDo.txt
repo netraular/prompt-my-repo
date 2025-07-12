@@ -1,1 +1,0 @@
-Quiero permitir seleccionar que tipos de archivos se van a seleccionar al elegir una carpeta o conjunto de archivos con subcarpetas. Ejemplo: main/*.h & *.cpp

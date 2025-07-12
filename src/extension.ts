@@ -36,7 +36,7 @@ export function activate(context: vscode.ExtensionContext) {
 
         if (templateName) {
             const templatePath = path.join(templatesDir, templateName);
-            const initialContent = `# Project-specific template for Prompt My Repo\n# Include directories or files you want to copy relative to the workspace root.\n# Append "*" to a directory for a recursive search (e.g., src*).\n# Exclude files or directories by prefixing them with "-" (e.g., -node_modules*).\n`;
+            const initialContent = `# Project-specific template for Prompt My Repo\n# Include directories or files you want to copy relative to the workspace root.\n# Append "*" to a directory for a recursive search (e.g., src*).\n# To filter by file type, add extensions in brackets: src* [.ts, .tsx]\n# Exclude files or directories by prefixing them with "-" (e.g., -node_modules*).\n`;
             fs.writeFileSync(templatePath, initialContent);
             treeDataProvider.refresh();
         }
@@ -59,8 +59,7 @@ export function activate(context: vscode.ExtensionContext) {
             vscode.window.showErrorMessage('No template path provided.');
         }
     });
-
-    // NUEVO COMANDO: Para renombrar una plantilla
+    
     const renameTemplateCommand = vscode.commands.registerCommand('prompt-my-repo.renameTemplate', async (templateItem: TemplateItem) => {
         if (!templateItem?.filePath) {
             vscode.window.showErrorMessage('No template selected for renaming.');
@@ -129,8 +128,22 @@ export function activate(context: vscode.ExtensionContext) {
         const fileHelpers = new TemplateTreeDataProvider();
 
         const resolvePathSpec = (spec: string): string[] => {
-            const isRecursive = spec.endsWith('*');
-            const normalizedSpec = isRecursive ? spec.slice(0, -1).trim() : spec;
+            const match = spec.match(/^(.*?)(?:\s*\[(.*?)\])?$/);
+            if (!match) return [];
+
+            const pathSpec = (match[1] || '').trim();
+            const extensionsStr = match[2];
+
+            let allowedExtensions: string[] = [];
+            if (extensionsStr) {
+                allowedExtensions = extensionsStr.split(',')
+                    .map(ext => ext.trim())
+                    .filter(ext => ext)
+                    .map(ext => ext.startsWith('.') ? ext : '.' + ext);
+            }
+
+            const isRecursive = pathSpec.endsWith('*');
+            const normalizedSpec = isRecursive ? pathSpec.slice(0, -1).trim() : pathSpec;
             const fullPath = path.join(workspaceRoot, normalizedSpec);
 
             if (!fs.existsSync(fullPath)) {
@@ -140,9 +153,13 @@ export function activate(context: vscode.ExtensionContext) {
 
             if (fs.statSync(fullPath).isDirectory()) {
                 return isRecursive
-                    ? fileHelpers.getAllFiles(fullPath)
-                    : fileHelpers.getFilesInDirectory(fullPath);
+                    ? fileHelpers.getAllFiles(fullPath, allowedExtensions)
+                    : fileHelpers.getFilesInDirectory(fullPath, allowedExtensions);
             } else {
+                const fileExt = path.extname(fullPath);
+                if (allowedExtensions.length > 0 && !allowedExtensions.includes(fileExt)) {
+                    return [];
+                }
                 return [fullPath];
             }
         };
@@ -179,8 +196,12 @@ export function activate(context: vscode.ExtensionContext) {
                 }
                 processedFiles.add(file);
                 const relativePath = path.relative(workspaceRoot, file);
-                const fileContent = fs.readFileSync(file, 'utf-8');
-                formattedContent += `${relativePath}:\n\`\`\`\n${fileContent}\n\`\`\`\n\n`;
+                try {
+                    const fileContent = fs.readFileSync(file, 'utf-8');
+                    formattedContent += `${relativePath}:\n\`\`\`\n${fileContent}\n\`\`\`\n\n`;
+                } catch (error) {
+                    console.warn(`Could not read file ${file}:`, error);
+                }
             }
         }
 
@@ -188,7 +209,6 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.showInformationMessage('Template content copied to clipboard!');
     });
 
-    // No olvides añadir el nuevo comando a las suscripciones
     context.subscriptions.push(
         createTemplateCommand,
         openTemplateCommand,
@@ -229,16 +249,19 @@ class TemplateTreeDataProvider implements vscode.TreeDataProvider<TemplateItem> 
         return Promise.resolve(templateItems);
     }
 
-    getAllFiles(dirPath: string): string[] {
+    getAllFiles(dirPath: string, allowedExtensions: string[] = []): string[] {
         let files: string[] = [];
         try {
             const items = fs.readdirSync(dirPath);
             for (const item of items) {
                 const fullPath = path.join(dirPath, item);
                 if (fs.statSync(fullPath).isDirectory()) {
-                    files = files.concat(this.getAllFiles(fullPath));
+                    files = files.concat(this.getAllFiles(fullPath, allowedExtensions));
                 } else {
-                    files.push(fullPath);
+                    const fileExt = path.extname(fullPath);
+                    if (allowedExtensions.length === 0 || allowedExtensions.includes(fileExt)) {
+                        files.push(fullPath);
+                    }
                 }
             }
         } catch (error) {
@@ -247,14 +270,17 @@ class TemplateTreeDataProvider implements vscode.TreeDataProvider<TemplateItem> 
         return files;
     }
 
-    getFilesInDirectory(dirPath: string): string[] {
+    getFilesInDirectory(dirPath: string, allowedExtensions: string[] = []): string[] {
         let files: string[] = [];
         try {
             const items = fs.readdirSync(dirPath);
             for (const item of items) {
                 const fullPath = path.join(dirPath, item);
                 if (!fs.statSync(fullPath).isDirectory()) {
-                    files.push(fullPath);
+                    const fileExt = path.extname(fullPath);
+                    if (allowedExtensions.length === 0 || allowedExtensions.includes(fileExt)) {
+                        files.push(fullPath);
+                    }
                 }
             }
         } catch (error) {
