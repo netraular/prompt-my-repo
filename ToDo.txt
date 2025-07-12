@@ -1,2 +1,1 @@
-Quiero que al dar al lápiz no se edite el archivo de configuración si no que se active la opción de renombrarlo. (Ya que para editarlo se puede pulsar en el nombre del archivo directamente)
 Quiero permitir seleccionar que tipos de archivos se van a seleccionar al elegir una carpeta o conjunto de archivos con subcarpetas. Ejemplo: main/*.h & *.cpp

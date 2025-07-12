@@ -50,13 +50,17 @@
       },
       {
         "command": "prompt-my-repo.openTemplate",
-        "title": "Open Template",
-        "icon": "$(edit)"
+        "title": "Open Template"
       },
       {
         "command": "prompt-my-repo.deleteTemplate",
         "title": "Delete Template",
         "icon": "$(trash)"
+      },
+      {
+        "command": "prompt-my-repo.renameTemplate",
+        "title": "Rename Template",
+        "icon": "$(edit)"
       }
     ],
     "menus": {
@@ -74,13 +78,18 @@
           "when": "view == prompt-my-repo.view && viewItem == templateItem"
         },
         {
-          "command": "prompt-my-repo.openTemplate",
+          "command": "prompt-my-repo.renameTemplate",
           "group": "inline",
           "when": "view == prompt-my-repo.view && viewItem == templateItem"
         },
         {
           "command": "prompt-my-repo.deleteTemplate",
           "group": "inline",
+          "when": "view == prompt-my-repo.view && viewItem == templateItem"
+        },
+        {
+          "command": "prompt-my-repo.openTemplate",
+          "group": "navigation",
           "when": "view == prompt-my-repo.view && viewItem == templateItem"
         }
       ]

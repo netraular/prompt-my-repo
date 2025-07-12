@@ -2,18 +2,14 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 
-// NUEVA FUNCIÓN: Obtiene la ruta del directorio de plantillas para el workspace actual.
-// Devuelve null si no hay ningún workspace abierto.
 function getTemplatesDir(): string | null {
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (!workspaceFolders) {
         return null;
     }
     const workspaceRoot = workspaceFolders[0].uri.fsPath;
-    // Las plantillas se guardarán en .vscode/prompt-my-repo-templates/ dentro del proyecto.
     const templatesDir = path.join(workspaceRoot, '.vscode', 'prompt-my-repo-templates');
 
-    // Asegurarse de que el directorio existe.
     if (!fs.existsSync(templatesDir)) {
         fs.mkdirSync(templatesDir, { recursive: true });
     }
@@ -23,11 +19,9 @@ function getTemplatesDir(): string | null {
 export function activate(context: vscode.ExtensionContext) {
     console.log('Congratulations, your extension "prompt-my-repo" is now active!');
 
-    // MODIFICADO: El TreeDataProvider ya no necesita el 'context' para la ruta.
     const treeDataProvider = new TemplateTreeDataProvider();
     vscode.window.registerTreeDataProvider('prompt-my-repo.view', treeDataProvider);
 
-    // MODIFICADO: El comando ahora guarda las plantillas en el directorio del proyecto.
     const createTemplateCommand = vscode.commands.registerCommand('prompt-my-repo.createTemplate', async () => {
         const templatesDir = getTemplatesDir();
         if (!templatesDir) {
@@ -48,7 +42,6 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    // Sin cambios en openTemplateCommand, ya que opera sobre el filePath proporcionado.
     const openTemplateCommand = vscode.commands.registerCommand('prompt-my-repo.openTemplate', (arg: string | TemplateItem) => {
         let templatePath: string;
         if (typeof arg === 'string') {
@@ -67,7 +60,48 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    // Sin cambios en deleteTemplateCommand.
+    // NUEVO COMANDO: Para renombrar una plantilla
+    const renameTemplateCommand = vscode.commands.registerCommand('prompt-my-repo.renameTemplate', async (templateItem: TemplateItem) => {
+        if (!templateItem?.filePath) {
+            vscode.window.showErrorMessage('No template selected for renaming.');
+            return;
+        }
+
+        const newName = await vscode.window.showInputBox({
+            prompt: 'Enter the new name for the template',
+            value: templateItem.label, // Pre-fill with the current name
+            validateInput: (value) => {
+                if (!value || value.trim().length === 0) {
+                    return 'Name cannot be empty.';
+                }
+                if (/[\\/:"*?<>|]/.test(value)) {
+                    return 'Name contains invalid characters.';
+                }
+                return null; // Input is valid
+            }
+        });
+
+        if (newName && newName.trim() !== templateItem.label) {
+            const templatesDir = getTemplatesDir();
+            if (!templatesDir) return; // Should not happen if item exists
+
+            const newFilePath = path.join(templatesDir, newName.trim());
+
+            if (fs.existsSync(newFilePath)) {
+                vscode.window.showErrorMessage(`A template with the name "${newName.trim()}" already exists.`);
+                return;
+            }
+
+            try {
+                fs.renameSync(templateItem.filePath, newFilePath);
+                treeDataProvider.refresh();
+                vscode.window.showInformationMessage(`Template renamed to "${newName.trim()}".`);
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to rename template: ${error}`);
+            }
+        }
+    });
+
     const deleteTemplateCommand = vscode.commands.registerCommand('prompt-my-repo.deleteTemplate', (templateItem: TemplateItem) => {
         if (templateItem && templateItem.filePath) {
             fs.unlinkSync(templateItem.filePath);
@@ -77,7 +111,6 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    // MODIFICADO: La instancia de TemplateTreeDataProvider ya no necesita 'context'.
     const copyTemplateCommand = vscode.commands.registerCommand('prompt-my-repo.copyTemplate', async (templateItem: TemplateItem) => {
         if (!templateItem?.filePath) {
             vscode.window.showErrorMessage('No template path provided.');
@@ -93,7 +126,7 @@ export function activate(context: vscode.ExtensionContext) {
         const workspaceRoot = workspaceFolders[0].uri.fsPath;
         const templateContent = fs.readFileSync(templateItem.filePath, 'utf-8');
         const templateLines = templateContent.split('\n');
-        const fileHelpers = new TemplateTreeDataProvider(); // Instancia sin 'context'
+        const fileHelpers = new TemplateTreeDataProvider();
 
         const resolvePathSpec = (spec: string): string[] => {
             const isRecursive = spec.endsWith('*');
@@ -155,15 +188,20 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.showInformationMessage('Template content copied to clipboard!');
     });
 
-    context.subscriptions.push(createTemplateCommand, openTemplateCommand, deleteTemplateCommand, copyTemplateCommand);
+    // No olvides añadir el nuevo comando a las suscripciones
+    context.subscriptions.push(
+        createTemplateCommand,
+        openTemplateCommand,
+        renameTemplateCommand,
+        deleteTemplateCommand,
+        copyTemplateCommand
+    );
 }
-
 
 class TemplateTreeDataProvider implements vscode.TreeDataProvider<TemplateItem> {
     private _onDidChangeTreeData = new vscode.EventEmitter<TemplateItem | undefined>();
     readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
-    // MODIFICADO: El constructor ya no es necesario.
     constructor() {}
 
     refresh(): void {
@@ -174,11 +212,9 @@ class TemplateTreeDataProvider implements vscode.TreeDataProvider<TemplateItem> 
         return element;
     }
 
-    // MODIFICADO: Lee las plantillas desde el directorio del proyecto.
     getChildren(): Thenable<TemplateItem[]> {
         const templatesDir = getTemplatesDir();
         if (!templatesDir) {
-            // No hay workspace abierto, así que no mostramos plantillas.
             return Promise.resolve([]);
         }
 
@@ -193,31 +229,36 @@ class TemplateTreeDataProvider implements vscode.TreeDataProvider<TemplateItem> 
         return Promise.resolve(templateItems);
     }
 
-    // El resto de los métodos de esta clase no necesitan cambios.
     getAllFiles(dirPath: string): string[] {
         let files: string[] = [];
-        const items = fs.readdirSync(dirPath);
-
-        for (const item of items) {
-            const fullPath = path.join(dirPath, item);
-            if (fs.statSync(fullPath).isDirectory()) {
-                files = files.concat(this.getAllFiles(fullPath));
-            } else {
-                files.push(fullPath);
+        try {
+            const items = fs.readdirSync(dirPath);
+            for (const item of items) {
+                const fullPath = path.join(dirPath, item);
+                if (fs.statSync(fullPath).isDirectory()) {
+                    files = files.concat(this.getAllFiles(fullPath));
+                } else {
+                    files.push(fullPath);
+                }
             }
+        } catch (error) {
+            console.error(`Error reading directory ${dirPath}:`, error);
         }
         return files;
     }
 
     getFilesInDirectory(dirPath: string): string[] {
         let files: string[] = [];
-        const items = fs.readdirSync(dirPath);
-
-        for (const item of items) {
-            const fullPath = path.join(dirPath, item);
-            if (!fs.statSync(fullPath).isDirectory()) {
-                files.push(fullPath);
+        try {
+            const items = fs.readdirSync(dirPath);
+            for (const item of items) {
+                const fullPath = path.join(dirPath, item);
+                if (!fs.statSync(fullPath).isDirectory()) {
+                    files.push(fullPath);
+                }
             }
+        } catch (error) {
+            console.error(`Error reading directory ${dirPath}:`, error);
         }
         return files;
     }
@@ -236,7 +277,7 @@ class TemplateItem extends vscode.TreeItem {
         this.command = {
             command: 'prompt-my-repo.openTemplate',
             title: 'Open Template',
-            arguments: [this.filePath]
+            arguments: [this]
         };
     }
 }
