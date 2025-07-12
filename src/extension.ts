@@ -18,7 +18,7 @@ export function activate(context: vscode.ExtensionContext) {
 
         if (templateName) {
             const templatePath = path.join(context.globalStorageUri.fsPath, templateName);
-            const initialContent = `# Include here the directories or files you want to copy relative to the current directory. You can append "\\*" at the end of a directory to also check the contents of subdirectories.\n`;
+            const initialContent = `# Include here the directories or files you want to copy relative to the current directory.\n# You can append "*" at the end of a directory to also check the contents of subdirectories (e.g., src*).\n`;
             fs.writeFileSync(templatePath, initialContent); // Create a file with initial content
             treeDataProvider.refresh(); // Refresh the sidebar view
         }
@@ -64,55 +64,63 @@ export function activate(context: vscode.ExtensionContext) {
             }
 
             const workspaceRoot = workspaceFolders[0].uri.fsPath;
-            const lines = templateContent
-                .split('\n')
-                .map(line => line.trim()) // Trim whitespace
-                .filter(line => line !== '' && !line.startsWith('#')); // Ignore empty lines and comments
+            let formattedContent = '';
+            const processedFiles = new Set<string>(); // To avoid duplicating file content
+            const fileHelpers = new TemplateTreeDataProvider(context); // For file system helpers
+            
+            const templateLines = templateContent.split('\n');
 
-            const uniqueFiles = new Set<string>(); // Usar un Set para eliminar duplicados
-            const treeDataProvider = new TemplateTreeDataProvider(context);
+            for (const line of templateLines) {
+                const trimmedLine = line.trim();
 
-            for (const line of lines) {
-                // Check if the line ends with "*" (recursive directory search)
-                const isRecursive = line.endsWith('*');
-                const normalizedLine = isRecursive ? line.slice(0, -1).trim() : line; // Remove the "*" and trim
-                const fullPath = path.join(workspaceRoot, path.normalize(normalizedLine));
+                // If the line is a comment or empty, add it to the output and continue
+                if (trimmedLine.startsWith('#') || trimmedLine === '') {
+                    formattedContent += line + '\n';
+                    continue;
+                }
+
+                // Otherwise, it's a path that needs processing
+                const isRecursive = trimmedLine.endsWith('*');
+                const pathSpec = isRecursive ? trimmedLine.slice(0, -1).trim() : trimmedLine;
+                const fullPath = path.join(workspaceRoot, pathSpec);
 
                 console.log(`Checking path: ${fullPath}`); // Debugging
 
                 if (fs.existsSync(fullPath)) {
+                    let filesToProcess: string[] = [];
                     if (fs.statSync(fullPath).isDirectory()) {
                         // Handle directory
                         console.log(`Processing directory: ${fullPath}`);
-                        const files = isRecursive
-                            ? treeDataProvider.getAllFiles(fullPath) // Recursive search
-                            : treeDataProvider.getFilesInDirectory(fullPath); // Non-recursive search
-                        console.log(`Files found: ${files.length}`);
-                        files.forEach(file => uniqueFiles.add(file)); // Agregar archivos al Set
+                        filesToProcess = isRecursive
+                            ? fileHelpers.getAllFiles(fullPath)       // Recursive search
+                            : fileHelpers.getFilesInDirectory(fullPath); // Non-recursive search
                     } else {
                         // Handle file
                         console.log(`Found file: ${fullPath}`);
-                        uniqueFiles.add(fullPath); // Agregar archivo al Set
+                        filesToProcess.push(fullPath);
+                    }
+
+                    for (const file of filesToProcess) {
+                        if (processedFiles.has(file)) {
+                            // Skip if file content has already been included
+                            continue;
+                        }
+
+                        processedFiles.add(file); // Mark as processed
+                        const relativePath = path.relative(workspaceRoot, file);
+                        const fileContent = fs.readFileSync(file, 'utf-8');
+
+                        // Add formatted file content to the output
+                        formattedContent += `${relativePath}:\n\`\`\`\n${fileContent}\n\`\`\`\n\n`;
                     }
                 } else {
                     console.warn(`Path not found: ${fullPath}`);
                 }
             }
 
-            console.log(`Total unique files found: ${uniqueFiles.size}`); // Debugging
-
-            // Formatear el contenido de los archivos
-            let formattedContent = '';
-            for (const file of uniqueFiles) {
-                const relativePath = path.relative(workspaceRoot, file); // Obtener la ruta relativa
-                const fileContent = fs.readFileSync(file, 'utf-8'); // Leer el contenido del archivo
-
-                formattedContent += `${relativePath}:\n\`\`\`\n${fileContent}\n\`\`\`\n\n`;
-            }
-
-            // Copiar el contenido formateado al portapapeles
-            vscode.env.clipboard.writeText(formattedContent.trim()); // Eliminar espacios en blanco al final
-            vscode.window.showInformationMessage('File list copied to clipboard!');
+            // Copy the final content to the clipboard and show a success message
+            vscode.env.clipboard.writeText(formattedContent.trimEnd());
+            vscode.window.showInformationMessage('Template content copied to clipboard!');
         } else {
             vscode.window.showErrorMessage('No template path provided.');
         }
