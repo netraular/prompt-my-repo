@@ -2,30 +2,53 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 
+// NUEVA FUNCIÓN: Obtiene la ruta del directorio de plantillas para el workspace actual.
+// Devuelve null si no hay ningún workspace abierto.
+function getTemplatesDir(): string | null {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders) {
+        return null;
+    }
+    const workspaceRoot = workspaceFolders[0].uri.fsPath;
+    // Las plantillas se guardarán en .vscode/prompt-my-repo-templates/ dentro del proyecto.
+    const templatesDir = path.join(workspaceRoot, '.vscode', 'prompt-my-repo-templates');
+
+    // Asegurarse de que el directorio existe.
+    if (!fs.existsSync(templatesDir)) {
+        fs.mkdirSync(templatesDir, { recursive: true });
+    }
+    return templatesDir;
+}
+
 export function activate(context: vscode.ExtensionContext) {
     console.log('Congratulations, your extension "prompt-my-repo" is now active!');
 
-    // Register a Tree Data Provider for the sidebar view
-    const treeDataProvider = new TemplateTreeDataProvider(context);
+    // MODIFICADO: El TreeDataProvider ya no necesita el 'context' para la ruta.
+    const treeDataProvider = new TemplateTreeDataProvider();
     vscode.window.registerTreeDataProvider('prompt-my-repo.view', treeDataProvider);
 
-    // Register a command to create a new template
+    // MODIFICADO: El comando ahora guarda las plantillas en el directorio del proyecto.
     const createTemplateCommand = vscode.commands.registerCommand('prompt-my-repo.createTemplate', async () => {
+        const templatesDir = getTemplatesDir();
+        if (!templatesDir) {
+            vscode.window.showErrorMessage('You must have a workspace folder open to create a project-specific template.');
+            return;
+        }
+
         const templateName = await vscode.window.showInputBox({
             prompt: 'Enter a name for the new template',
             placeHolder: 'Template name'
         });
 
         if (templateName) {
-            const templatePath = path.join(context.globalStorageUri.fsPath, templateName);
-            // Updated initial content to mention the exclusion feature
-            const initialContent = `# Include directories or files you want to copy relative to the workspace root.\n# Append "*" to a directory for a recursive search (e.g., src*).\n# Exclude files or directories by prefixing them with "-" (e.g., -node_modules*).\n`;
+            const templatePath = path.join(templatesDir, templateName);
+            const initialContent = `# Project-specific template for Prompt My Repo\n# Include directories or files you want to copy relative to the workspace root.\n# Append "*" to a directory for a recursive search (e.g., src*).\n# Exclude files or directories by prefixing them with "-" (e.g., -node_modules*).\n`;
             fs.writeFileSync(templatePath, initialContent);
             treeDataProvider.refresh();
         }
     });
 
-    // Register a command to open a template for editing
+    // Sin cambios en openTemplateCommand, ya que opera sobre el filePath proporcionado.
     const openTemplateCommand = vscode.commands.registerCommand('prompt-my-repo.openTemplate', (arg: string | TemplateItem) => {
         let templatePath: string;
         if (typeof arg === 'string') {
@@ -44,7 +67,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    // Register a command to delete a template
+    // Sin cambios en deleteTemplateCommand.
     const deleteTemplateCommand = vscode.commands.registerCommand('prompt-my-repo.deleteTemplate', (templateItem: TemplateItem) => {
         if (templateItem && templateItem.filePath) {
             fs.unlinkSync(templateItem.filePath);
@@ -54,7 +77,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    // Register a command to copy the contents of a template
+    // MODIFICADO: La instancia de TemplateTreeDataProvider ya no necesita 'context'.
     const copyTemplateCommand = vscode.commands.registerCommand('prompt-my-repo.copyTemplate', async (templateItem: TemplateItem) => {
         if (!templateItem?.filePath) {
             vscode.window.showErrorMessage('No template path provided.');
@@ -70,9 +93,8 @@ export function activate(context: vscode.ExtensionContext) {
         const workspaceRoot = workspaceFolders[0].uri.fsPath;
         const templateContent = fs.readFileSync(templateItem.filePath, 'utf-8');
         const templateLines = templateContent.split('\n');
-        const fileHelpers = new TemplateTreeDataProvider(context);
+        const fileHelpers = new TemplateTreeDataProvider(); // Instancia sin 'context'
 
-        // Helper function to resolve a path spec (like 'src*' or 'file.txt') to a list of file paths
         const resolvePathSpec = (spec: string): string[] => {
             const isRecursive = spec.endsWith('*');
             const normalizedSpec = isRecursive ? spec.slice(0, -1).trim() : spec;
@@ -92,27 +114,19 @@ export function activate(context: vscode.ExtensionContext) {
             }
         };
 
-        // --- PASS 1: Build the set of excluded files ---
         const excludedFiles = new Set<string>();
-        console.log("--- Starting exclusion pass ---");
         for (const line of templateLines) {
             const trimmedLine = line.trim();
             if (trimmedLine.startsWith('-')) {
                 const spec = trimmedLine.substring(1).trim();
                 const filesToExclude = resolvePathSpec(spec);
-                filesToExclude.forEach(file => {
-                    console.log(`Excluding file: ${file}`);
-                    excludedFiles.add(file);
-                });
+                filesToExclude.forEach(file => excludedFiles.add(file));
             }
         }
-        console.log(`Total files to exclude: ${excludedFiles.size}`);
 
-        // --- PASS 2: Build the final output, respecting inclusions, exclusions, and order ---
         let formattedContent = '';
-        const processedFiles = new Set<string>(); // Avoid duplicating file content
+        const processedFiles = new Set<string>();
         
-        console.log("--- Starting inclusion pass ---");
         for (const line of templateLines) {
             const trimmedLine = line.trim();
 
@@ -121,27 +135,15 @@ export function activate(context: vscode.ExtensionContext) {
                 continue;
             }
 
-            // Exclusion rules are ignored in this pass, they were handled in pass 1
             if (trimmedLine.startsWith('-')) {
                 continue;
             }
 
-            // This is an inclusion rule
             const filesToInclude = resolvePathSpec(trimmedLine);
             for (const file of filesToInclude) {
-                // Check against three conditions:
-                // 1. Is it explicitly excluded?
-                // 2. Has it already been processed?
-                if (excludedFiles.has(file)) {
-                    console.log(`Skipping excluded file: ${file}`);
+                if (excludedFiles.has(file) || processedFiles.has(file)) {
                     continue;
                 }
-                if (processedFiles.has(file)) {
-                    console.log(`Skipping already processed file: ${file}`);
-                    continue;
-                }
-
-                // If all checks pass, process the file
                 processedFiles.add(file);
                 const relativePath = path.relative(workspaceRoot, file);
                 const fileContent = fs.readFileSync(file, 'utf-8');
@@ -161,7 +163,8 @@ class TemplateTreeDataProvider implements vscode.TreeDataProvider<TemplateItem> 
     private _onDidChangeTreeData = new vscode.EventEmitter<TemplateItem | undefined>();
     readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
-    constructor(private context: vscode.ExtensionContext) {}
+    // MODIFICADO: El constructor ya no es necesario.
+    constructor() {}
 
     refresh(): void {
         this._onDidChangeTreeData.fire(undefined);
@@ -171,13 +174,17 @@ class TemplateTreeDataProvider implements vscode.TreeDataProvider<TemplateItem> 
         return element;
     }
 
+    // MODIFICADO: Lee las plantillas desde el directorio del proyecto.
     getChildren(): Thenable<TemplateItem[]> {
-        const templatesDir = this.context.globalStorageUri.fsPath;
-        if (!fs.existsSync(templatesDir)) {
-            fs.mkdirSync(templatesDir, { recursive: true });
+        const templatesDir = getTemplatesDir();
+        if (!templatesDir) {
+            // No hay workspace abierto, así que no mostramos plantillas.
+            return Promise.resolve([]);
         }
 
-        const templateFiles = fs.readdirSync(templatesDir).filter(file => !fs.statSync(path.join(templatesDir, file)).isDirectory());
+        const templateFiles = fs.readdirSync(templatesDir).filter(file => 
+            !fs.statSync(path.join(templatesDir, file)).isDirectory()
+        );
         const templateItems = templateFiles.map(file => {
             const filePath = path.join(templatesDir, file);
             return new TemplateItem(file, filePath);
@@ -186,7 +193,7 @@ class TemplateTreeDataProvider implements vscode.TreeDataProvider<TemplateItem> 
         return Promise.resolve(templateItems);
     }
 
-    // Función para obtener todos los archivos en un directorio y sus subdirectorios (recursivo)
+    // El resto de los métodos de esta clase no necesitan cambios.
     getAllFiles(dirPath: string): string[] {
         let files: string[] = [];
         const items = fs.readdirSync(dirPath);
@@ -194,19 +201,14 @@ class TemplateTreeDataProvider implements vscode.TreeDataProvider<TemplateItem> 
         for (const item of items) {
             const fullPath = path.join(dirPath, item);
             if (fs.statSync(fullPath).isDirectory()) {
-                // console.log(`Entering subdirectory: ${fullPath}`);
-                const subFiles = this.getAllFiles(fullPath); // Llamada recursiva
-                files = files.concat(subFiles);
+                files = files.concat(this.getAllFiles(fullPath));
             } else {
-                // console.log(`Found file: ${fullPath}`);
                 files.push(fullPath);
             }
         }
-
         return files;
     }
 
-    // Función para obtener solo los archivos en un directorio (no recursivo)
     getFilesInDirectory(dirPath: string): string[] {
         let files: string[] = [];
         const items = fs.readdirSync(dirPath);
@@ -214,11 +216,9 @@ class TemplateTreeDataProvider implements vscode.TreeDataProvider<TemplateItem> 
         for (const item of items) {
             const fullPath = path.join(dirPath, item);
             if (!fs.statSync(fullPath).isDirectory()) {
-                // console.log(`Found file: ${fullPath}`);
                 files.push(fullPath);
             }
         }
-
         return files;
     }
 }
