@@ -6,6 +6,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.1.1] - 2025-07-12
+
+### Changed
+
+- Updated the `README.md` with a new, image-based "How to Use" section to provide a clearer and more user-friendly guide for the extension's workflow.
+
 ## [0.1.0] - 2025-07-12
 
 This is the first major feature release, introducing a complete workflow for creating, managing, and using powerful templates.

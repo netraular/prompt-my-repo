@@ -3,7 +3,7 @@
   "displayName": "Prompt my repo",
   "publisher": "netraular",
   "description": "A VS Code extension that generates LLM prompts from selected files or folders, allowing you to seamlessly integrate their content into your existing prompts for enhanced AI interactions.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "engines": {
     "vscode": "^1.96.0"
